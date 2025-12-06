@@ -1,3 +1,10 @@
+# n8n Docker Setup
+# Environment variables with secrets
+.env
+
+# n8n data directory (contains workflows, credentials, etc.)
+n8n_data/
+
 # Prerequisites
 *.d
 
