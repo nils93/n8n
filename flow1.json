@@ -1,0 +1,116 @@
+{
+  "name": "Daily Strava Analysis",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.cron",
+      "position": [280, 240],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 6,
+              "minute": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Telegram Manual Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [280, 80],
+      "disabled": true,
+      "parameters": {
+        "updates": []
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__REPLACE_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Strava Get Yesterday Activities",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [600, 160],
+      "parameters": {
+        "authentication": "oAuth2",
+        "url": "https://www.strava.com/api/v3/athlete/activities",
+        "method": "GET",
+        "options": {
+          "qs": {
+            "after": "={{ Math.floor((new Date(new Date().setDate(new Date().getDate() - 1))).getTime() / 1000) }}",
+            "before": "={{ Math.floor((new Date().setHours(0,0,0,0)) / 1000) }}",
+            "per_page": 20
+          }
+        }
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__REPLACE_STRAVA_CREDENTIAL_ID__",
+          "name": "Strava OAuth"
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Prepare Summary",
+      "type": "n8n-nodes-base.function",
+      "position": [860, 160],
+      "parameters": {
+        "functionCode": "const acts = items.map(i => i.json);\n\nif (!acts.length) {\n  return [{ json: { summary: \"Keine Aktivitäten gestern.\" } }];\n}\n\nlet totalTime = 0;\nlet totalDistance = 0;\nlet avgPower = [];\n\nacts.forEach(a => {\n  if (a.moving_time) totalTime += a.moving_time/3600;\n  if (a.distance) totalDistance += a.distance/1000;\n  if (a.average_watts) avgPower.push(a.average_watts);\n});\n\nconst avgW = avgPower.length ? avgPower.reduce((a,b)=>a+b)/avgPower.length : null;\n\nreturn [{\n  json: {\n    totalTime,\n    totalDistance,\n    avgPower: avgW,\n    count: acts.length,\n    raw: acts\n  }\n}];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "OpenAI Daily Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "position": [1120, 160],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "operation": "chat",
+        "messages": [
+          {
+            "text": "Du bist mein Radcoach.\nHier sind meine gestrigen Aktivitäten:\n\nAnzahl Aktivitäten: {{$json.count}}\nGesamtzeit: {{$json.totalTime}} Stunden\nGesamtdistanz: {{$json.totalDistance}} km\nDurchschnittsleistung: {{$json.avgPower}}\n\nErstelle bitte eine kurze Tagesanalyse und eine Empfehlung für heute.\n\nFormat:\n1) Kurze Zusammenfassung\n2) Trainingsempfehlung\n3) Motivation",
+            "role": "user"
+          }
+        ]
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CREDENTIAL_ID__",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "6",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1400, 160],
+      "parameters": {
+        "chatId": "__REPLACE_CHAT_ID__",
+        "text": "={{$json.choices[0].message.text}}"
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__REPLACE_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram Bot"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Daily Trigger": { "main": [[{ "node": "Strava Get Yesterday Activities", "type": "main", "index": 0 }]] },
+    "Telegram Manual Trigger": { "main": [[{ "node": "Strava Get Yesterday Activities", "type": "main", "index": 0 }]] },
+    "Strava Get Yesterday Activities": { "main": [[{ "node": "Prepare Summary", "type": "main", "index": 0 }]] },
+    "Prepare Summary": { "main": [[{ "node": "OpenAI Daily Analysis", "type": "main", "index": 0 }]] },
+    "OpenAI Daily Analysis": { "main": [[{ "node": "Send Telegram Message", "type": "main", "index": 0 }]] }
+  }
+}

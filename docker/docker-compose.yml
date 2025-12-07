@@ -2,12 +2,14 @@ services:
   n8n:
     image: n8nio/n8n:latest
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
-      - N8N_HOST=localhost
+      - N8N_HOST=macbook-air-von-nils.tail505470.ts.net
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=https
       - N8N_BASIC_AUTH_ACTIVE=false
+      - WEBHOOK_URL=https://macbook-air-von-nils.tail505470.ts.net/
+      - N8N_EDITOR_BASE_URL=https://macbook-air-von-nils.tail505470.ts.net/
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - N8N_SMTP_HOST=smtp.gmail.com
       - N8N_SMTP_PORT=587

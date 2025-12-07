@@ -37,3 +37,4 @@ docker compose --env-file ../.env up -d
 echo "=== [n8n] Setup abgeschlossen! ==="
 echo "n8n läuft nun unter: http://localhost:5678"
 echo "Persistente Daten: ../n8n_data/"
+echo "Jetzt noch \"tailscale funnel 5678\" freigeben, falls von außen erreichbar sein soll."
